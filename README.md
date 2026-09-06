@@ -38,49 +38,42 @@ pip install boto3
 ## Usage
 
 ```bash
-# Run offline demo with embedded sample data
-python3 cloud_forensics.py
+# Run offline demo with embedded sample data (no config, exit 0)
+python3 firmware/cloud_forensics.py
 
-# Analyze a specific cloud config
-python3 cloud_forensics.py --config cloud_config.json
+# Analyze the bundled cloud config fixture (offline)
+python3 firmware/cloud_forensics.py --config fixtures/cloud_config.json
 
-# Export findings to JSON
-python3 cloud_forensics.py --config cloud_config.json --output report.json
+# Export findings to JSON (defaults to reports/cl7-report.json)
+python3 firmware/cloud_forensics.py --config fixtures/cloud_config.json --output reports/my.json
+
+# CI-friendly: exit 2 when CRITICAL/HIGH findings exist
+python3 firmware/cloud_forensics.py --config fixtures/cloud_config.json --exit-code-on-findings; echo $?
 ```
 
-## Example Output
+## Exit Codes
 
-```
-============================================================
-  CL7 — Cloud Forensics Toolkit
-============================================================
-  Mode: Offline Demo (no credentials)
+- `0` — completed cleanly (or demo finished without explicit CRITICAL/HIGH gate)
+- `1` — error (unreadable/missing config)
+- `2` — CRITICAL/HIGH findings present with `--exit-code-on-findings`
 
-============================================================
-  LOG SOURCE INVENTORY
-============================================================
-    [!!] MISSING CloudTrail Log Validation: DISABLED
-    [!!] MISSING VPC Flow Logs: DISABLED
-    [OK] CloudTrail: ENABLED
+## Live Lab Test Plan
 
-  Coverage: 2/7 log sources active
-  WARNING: 5 log source(s) missing — blind spots exist
+Runs entirely offline on the bundled fixture `fixtures/cloud_config.json` — no cloud account, no credentials, no network.
 
-============================================================
-  MFA & CREDENTIAL ANOMALY DETECTION
-============================================================
-  [!!] CRITICAL: MFA not enforced for IAM users
-  [!!] CRITICAL: Root account MFA disabled
-  [!!] HIGH: Over-privileged policy 'FullAccess' on user 'admin-user'
+1. **Demo**: `python3 firmware/cloud_forensics.py` — no-arg mode uses embedded demo data and exits `0`.
+2. **Fixture run**: `python3 firmware/cloud_forensics.py --config fixtures/cloud_config.json` — produce CRITICAL findings: MFA not enforced, root MFA disabled, unknown-user AssumeRole, open SSH (22/3389) security groups, and HIGH findings: console MFA missing, over-privileged wildcard policy, open DB (3306) port.
+3. **JSON report**: verify `reports/cl7-report.json` has `finding_count > 0`, `critical_high_count > 0`, and a `snapshot_manifest` + `timeline`.
+4. **CI exit code**: `--exit-code-on-findings` returns `2`.
+5. **Unit tests**: `python3 -m unittest discover -s tests -v` — all pass.
 
-============================================================
-  EVENT CORRELATION TIMELINE
-============================================================
-  2026-03-01T02:10:00Z  [!!!] cloudtrail   AssumeRole    user=unknown   ip=45.33.32.156   AdminRole [UNKNOWN_USER, SUSPICIOUS_IP]
+## Metrics
 
-  Total events: 9
-  Suspicious events: 5
-```
+- Real detection paths exercised offline: log-source inventory, SHA-256 snapshot manifest, MFA/credential anomalies, security-group port exposure, event-correlation timeline
+- 9 unit tests cover the engine on the fixture and embedded demo
+- Every finding carries `category`, `severity`, and `detail`
+- Exit-code contract: `0` clean / `1` error / `2` findings (with `--exit-code-on-findings`)
+- Zero third-party dependencies; `--demo`/`--config` require no cloud access
 
 ## IMPORTANT: Read before use.
 

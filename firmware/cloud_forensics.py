@@ -359,7 +359,9 @@ class CloudForensics:
 def main():
     parser = argparse.ArgumentParser(description="CL7 — Cloud Forensics Toolkit")
     parser.add_argument("--config", "-c", help="Path to cloud config JSON (uses built-in demo if omitted)")
-    parser.add_argument("--output", "-o", help="Output JSON report path")
+    parser.add_argument("--output", "-o", default="", help="Output JSON report path")
+    parser.add_argument("--exit-code-on-findings", action="store_true",
+                        help="Exit 2 when CRITICAL/HIGH findings exist (CI-friendly)")
     args = parser.parse_args()
 
     config = None
@@ -370,25 +372,33 @@ def main():
             print(f"Loaded config from: {args.config}")
         except Exception as e:
             print(f"ERROR: Could not load config: {e}")
-            sys.exit(1)
+            return 1
     else:
         print("No config provided — using embedded demo data")
 
     tool = CloudForensics(config)
     findings = tool.run()
 
-    if args.output:
-        report = {
-            "tool": "CL7-CloudForensics",
-            "findings": findings,
-            "snapshot_manifest": tool.snapshot_manifest,
-            "timeline": tool.timeline
-        }
-        with open(args.output, "w") as f:
-            json.dump(report, f, indent=2)
-        print(f"\nReport saved to: {args.output}")
+    report = {
+        "tool": "CL7-CloudForensics",
+        "mode": "config" if args.config else "embedded-demo",
+        "finding_count": len(findings),
+        "critical_high_count": sum(1 for f in findings if f["severity"] in ("CRITICAL", "HIGH")),
+        "findings": findings,
+        "snapshot_manifest": tool.snapshot_manifest,
+        "timeline": tool.timeline
+    }
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    output = args.output or os.path.join(base_dir, "..", "reports", "cl7-report.json")
+    parent = os.path.dirname(os.path.abspath(output))
+    os.makedirs(parent, exist_ok=True)
+    with open(output, "w") as f:
+        json.dump(report, f, indent=2, sort_keys=True)
+    print(f"\nReport saved to: {output}")
 
     print("\nDone.")
+    if args.exit_code_on_findings and report["critical_high_count"] > 0:
+        return 2
     return 0
 
 

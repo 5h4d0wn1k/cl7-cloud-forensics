@@ -1,0 +1,62 @@
+{
+  "log_sources": [
+    {
+      "name": "prod-cloudtrail",
+      "type": "s3",
+      "bucket": "1920-2-1-example-cloudtrail",
+      "prefix": "AWSLogs",
+      "enabled": true
+    },
+    {
+      "name": "prod-vpc-flow",
+      "type": "flowlogs",
+      "log_group": "1920-2-2-example-flowlogs",
+      "enabled": true
+    },
+    {
+      "name": "prod-cloudwatch-events",
+      "type": "cloudwatch",
+      "log_group": "1920-2-3-example-events",
+      "enabled": false
+    }
+  ],
+  "iam": {
+    "mfa_enforced": false,
+    "root_mfa": false,
+    "console_mfa": false,
+    "access_key_age_days": 200,
+    "unused_credentials_days": 90,
+    "inline_policies": [
+      {
+        "policy_name": "AdministratorAccess",
+        "user": "credential-attacker.example",
+        "resource": "*",
+        "effect": "Allow"
+      }
+    ],
+    "assume_role_history": [
+      {"user": "unknown", "role": "prd-app-role", "source_ip": "203.0.113.77"},
+      {"user": "unknown", "role": "prd-app-role", "source_ip": "203.0.113.78"},
+      {"user": "deploy-bot", "role": "prd-app-role", "source_ip": "203.0.113.79"},
+      {"user": "deploy-bot", "role": "prd-app-role", "source_ip": "203.0.113.80"}
+    ]
+  },
+  "security_groups": [
+    {
+      "name": "ssh-admin",
+      "id": "sg-19200001",
+      "inbound_rules": [
+        {"protocol": "tcp", "port": 22, "source": "0.0.0.0/0"},
+        {"protocol": "tcp", "port": 3389, "source": "0.0.0.0/0"},
+        {"protocol": "tcp", "port": 443, "source": "192.0.2.0/24"}
+      ]
+    },
+    {
+      "name": "db-access",
+      "id": "sg-19200002",
+      "inbound_rules": [
+        {"protocol": "tcp", "port": 3306, "source": "0.0.0.0/0"}
+      ]
+    }
+  ]
+}
