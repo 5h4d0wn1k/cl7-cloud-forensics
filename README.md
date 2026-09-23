@@ -6,117 +6,78 @@
 
 # CL7 — Cloud Forensics Toolkit
 
-Post-breach cloud evidence gathering, incident analysis, and forensic timeline reconstruction.
+Cloud-native forensics analyzer for post-breach evidence collection and incident analysis across
+**AWS, GCP, and Azure** — log-source inventory, SHA-256 snapshot manifests with chain of custody,
+MFA/credential anomaly detection, and security-group exposure checks — entirely offline on bundled
+fixtures or live cloud accounts you own.
 
-## Overview
+![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+![GitHub stars](https://img.shields.io/github/stars/5h4d0wn1k/cl7-cloud-forensics)
+![GitHub last commit](https://img.shields.io/github/last-commit/5h4d0wn1k/cl7-cloud-forensics)
+![GitHub issues](https://img.shields.io/github/issues/5h4d0wn1k/cl7-cloud-forensics)
 
-This project implements a cloud forensics toolkit that:
-- Inventories cloud log sources and detects missing/disabled logging
-- Generates snapshot manifests with SHA-256 hashes and timestamps for listed resources
-- Detects MFA/credential anomalies in cloud configs (missing MFA, over-privileged policies, stale keys)
-- Correlates events into an incident timeline with anomaly flagging
-- Flags security group misconfigurations (open SSH/DB ports to 0.0.0.0/0)
-- Produces a forensic summary report with severity-scored findings
+## Why
+
+Cloud incident response is fought with evidence: what was logged, what was accessed, and what was
+exposed. CL7 automates the forensics checklist — it inventories whether CloudTrail/VPC Flow/
+GuardDuty/S3 logging is enabled, hashes and timestamps every listed resource into a chain-of-custody
+snapshot manifest, detects missing MFA and stale keys, flags wildcard IAM policies and open security
+groups, and correlates events into an incident timeline. It is an educational, cloud-forensics and
+incident-response instrument that runs with zero third-party dependencies against embedded demo data
+or a config fixture; live analysis of any real cloud account requires explicit written authorization
+from the account owner.
 
 ## Features
 
-- **Log Source Inventory**: Detect CloudTrail, VPC Flow, GuardDuty, S3 access logging gaps
-- **Snapshot Manifest**: Hash + timestamp every resource for chain-of-custody evidence
-- **MFA/Credential Anomalies**: Root MFA missing, stale keys, wildcard IAM policies, unknown AssumeRole
-- **Security Group Analysis**: Detect SSH/DB ports open to the internet
-- **Event Timeline**: Correlate CloudTrail/VPC/GuardDuty events with anomaly markers
-- **Forensic Report**: Severity-scored findings summary
+- **Log source inventory** — detects CloudTrail, VPC Flow, GuardDuty, and S3 access-logging gaps.
+- **Snapshot manifest** — SHA-256 hash + timestamp per resource for chain-of-custody evidence.
+- **MFA / credential anomalies** — root MFA missing, stale keys, wildcard IAM policies, unknown
+  AssumeRole.
+- **Security group analysis** — flags SSH/DB ports open to `0.0.0.0/0`.
+- **Event timeline** — correlates events with anomaly markers into a severity-scored report.
+- **CI-grade exit codes** — `0` clean, `1` error, `2` CRITICAL/HIGH findings under
+  `--exit-code-on-findings`.
 
-## Dependencies
+## Quickstart
 
-**None** — uses only Python standard library. Optional `boto3` / `google-cloud` for live cloud analysis (gracefully degrades to offline demo).
-
-## Installation
-
-```bash
-# No installation required — standard library only
-python3 cloud_forensics.py
-
-# Optional: install boto3 for live AWS analysis
-pip install boto3
-```
-
-## Usage
+Prerequisite: Python 3 (standard library; optional `boto3` for live AWS analysis).
 
 ```bash
-# Run offline demo with embedded sample data (no config, exit 0)
-python3 firmware/cloud_forensics.py
-
-# Analyze the bundled cloud config fixture (offline)
+python3 firmware/cloud_forensics.py                     # offline demo, exit 0
 python3 firmware/cloud_forensics.py --config fixtures/cloud_config.json
-
-# Export findings to JSON (defaults to reports/cl7-report.json)
-python3 firmware/cloud_forensics.py --config fixtures/cloud_config.json --output reports/my.json
-
-# CI-friendly: exit 2 when CRITICAL/HIGH findings exist
-python3 firmware/cloud_forensics.py --config fixtures/cloud_config.json --exit-code-on-findings; echo $?
+python3 firmware/cloud_forensics.py --config fixtures/cloud_config.json \
+    --output reports/my.json
+python3 firmware/cloud_forensics.py --config fixtures/cloud_config.json \
+    --exit-code-on-findings; echo $?                    # 2 when findings exist
 ```
 
-## Exit Codes
+## Examples
 
-- `0` — completed cleanly (or demo finished without explicit CRITICAL/HIGH gate)
-- `1` — error (unreadable/missing config)
-- `2` — CRITICAL/HIGH findings present with `--exit-code-on-findings`
+- `fixtures/cloud_config.json` — bundled cloud config that exercises every detection path:
+  MFA not enforced, root MFA disabled, unknown-user AssumeRole, open SSH/DB security groups.
 
-## Live Lab Test Plan
+## Tests
 
-Runs entirely offline on the bundled fixture `fixtures/cloud_config.json` — no cloud account, no credentials, no network.
+```bash
+python3 -m unittest discover -s tests -v
+```
 
-1. **Demo**: `python3 firmware/cloud_forensics.py` — no-arg mode uses embedded demo data and exits `0`.
-2. **Fixture run**: `python3 firmware/cloud_forensics.py --config fixtures/cloud_config.json` — produce CRITICAL findings: MFA not enforced, root MFA disabled, unknown-user AssumeRole, open SSH (22/3389) security groups, and HIGH findings: console MFA missing, over-privileged wildcard policy, open DB (3306) port.
-3. **JSON report**: verify `reports/cl7-report.json` has `finding_count > 0`, `critical_high_count > 0`, and a `snapshot_manifest` + `timeline`.
-4. **CI exit code**: `--exit-code-on-findings` returns `2`.
-5. **Unit tests**: `python3 -m unittest discover -s tests -v` — all pass.
+## Project structure
 
-## Metrics
+- `firmware/cloud_forensics.py` — the forensics engine and CLI.
+- `fixtures/` — offline cloud-config fixtures.
+- `tests/` — stdlib unittest suite.
 
-- Real detection paths exercised offline: log-source inventory, SHA-256 snapshot manifest, MFA/credential anomalies, security-group port exposure, event-correlation timeline
-- 9 unit tests cover the engine on the fixture and embedded demo
-- Every finding carries `category`, `severity`, and `detail`
-- Exit-code contract: `0` clean / `1` error / `2` findings (with `--exit-code-on-findings`)
-- Zero third-party dependencies; `--demo`/`--config` require no cloud access
+## Documentation
 
-## IMPORTANT: Read before use.
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md)
+- [ETHICS.md](ETHICS.md) · [SCOPE.md](SCOPE.md)
 
-This project is provided for **educational and authorized security testing purposes only**.
+## Contributing
 
-### Authorization Requirements
-- You MUST have explicit written permission from the cloud account owner before using this tool
-- Unauthorized access to cloud environments is illegal under federal and state laws
-- This tool should ONLY be used on cloud accounts you own or have written authorization to test
-
-### Legal Framework
-- **Computer Fraud and Abuse Act (CFAA)**: Unauthorized access to computer systems is a federal crime
-- **AWS/GCP/Azure Acceptable Use Policies**: Unauthorized probing violates cloud provider ToS
-- **State Laws**: Many states have additional computer crime statutes
-- **GDPR/CCPA**: Cloud data access may be subject to privacy regulations
-
-### Acceptable Use
-- Testing security of your own cloud environments
-- Authorized penetration testing with written scope
-- Academic research in controlled lab environments
-- Security education and training
-
-### Prohibited Use
-- Accessing cloud accounts you do not own
-- Modifying or deleting cloud resources without authorization
-- Any activity that violates applicable laws or regulations
-- Commercial use without proper licensing
-
-### No Warranty
-This software is provided "AS IS" without warranty of any kind. The author is not responsible for any misuse or damage caused by this software.
-
-### Responsible Disclosure
-If you discover vulnerabilities using this tool, follow responsible disclosure practices:
-1. Report to the vendor/owner privately
-2. Allow reasonable time for remediation
-3. Do not exploit beyond proof of concept
+See [CONTRIBUTING.md](CONTRIBUTING.md). Keep the tool offline-first and dependency-free.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
